@@ -10,3 +10,4 @@ wheels/
 .venv
 
 data/32m
+data/processed
