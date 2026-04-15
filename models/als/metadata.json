@@ -1,0 +1,11 @@
+{
+  "model": "ALS",
+  "dataset": "large (32M ratings)",
+  "rank": 5,
+  "maxIter": 10,
+  "regParam": 0.1,
+  "rmse": 0.8033,
+  "n_users": 200948,
+  "n_items": 84432,
+  "trained_at": "2026-04-15T12:01:43.741182"
+}
