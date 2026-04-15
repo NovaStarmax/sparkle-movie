@@ -25,8 +25,8 @@ jobs:
 
       - name: Run tests
         env:
-          API_TMDB_KEY: ${{ secrets.TMDB_API_KEY }}
-          API_TMDB_READ_KEY: ${{ secrets.TMDB_READ_TOKEN }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          TMDB_READ_TOKEN: ${{ secrets.TMDB_READ_TOKEN }}
         run: uv run pytest tests/ -v
 
       - name: Deploy via Coolify webhook

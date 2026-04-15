@@ -6,8 +6,8 @@ from dotenv import load_dotenv
 _root = Path(__file__).parent.parent
 load_dotenv(_root / ".env")
 
-TMDB_API_KEY: str = os.getenv("API_TMDB_KEY", "")
-TMDB_READ_TOKEN: str = os.getenv("API_TMDB_READ_KEY", "")
+TMDB_API_KEY: str = os.getenv("TMDB_API_KEY", "")
+TMDB_READ_TOKEN: str = os.getenv("TMDB_READ_TOKEN", "")
 
 # MODELS_PATH can be absolute or relative to project root
 _models_env = os.getenv("MODELS_PATH", "models")
