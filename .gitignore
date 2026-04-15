@@ -1,4 +1,4 @@
-# Python-generated files
+# Python
 __pycache__/
 *.py[oc]
 build/
@@ -6,10 +6,27 @@ dist/
 wheels/
 *.egg-info
 
-# Virtual environments
-.venv
+# Environnement
+.venv/
 
-data/32m
-data/processed
+# Données lourdes
+data/32m/
+data/processed/
 
+# Modèles entraînés
+*.npy
+*.pt
+models/shared/
+models/als/
+
+# Secrets
 .env
+
+# Tests
+.pytest_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store

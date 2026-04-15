@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sparkle Movie</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { animation: spin 0.75s linear infinite; }
+
+    /* Subtle scrollbar */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: #111827; }
+    ::-webkit-scrollbar-thumb { background: #374151; border-radius: 9999px; }
+
+    /* Clamp helpers */
+    .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen antialiased">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <header class="text-center pt-14 pb-10 px-4">
+    <div class="inline-flex items-center gap-2 mb-3">
+      <span class="text-violet-400 text-3xl leading-none">✦</span>
+      <h1 class="text-4xl font-bold tracking-tight text-white">Sparkle Movie</h1>
+    </div>
+    <p class="text-gray-400 text-lg">Discover films you'll love, powered by ALS</p>
+  </header>
+
+  <!-- ── Main ───────────────────────────────────────────────────────────── -->
+  <main class="max-w-6xl mx-auto px-4 pb-20">
+
+    <!-- Search bar -->
+    <div class="relative max-w-2xl mx-auto mb-12">
+      <div class="flex gap-3">
+        <!-- Input + clear -->
+        <div class="relative flex-1">
+          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none text-lg">🔍</span>
+          <input
+            id="search-input"
+            type="text"
+            placeholder="Search for a movie…"
+            autocomplete="off"
+            class="w-full bg-gray-800 border border-gray-700 rounded-xl pl-11 pr-10 py-4 text-white placeholder-gray-500
+                   focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors text-base"
+          />
+          <button
+            id="clear-btn"
+            class="hidden absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center
+                   text-gray-500 hover:text-white transition-colors text-xl leading-none"
+            aria-label="Clear search"
+          >×</button>
+        </div>
+        <!-- Recommend button -->
+        <button
+          id="recommend-btn"
+          class="flex-shrink-0 bg-violet-600 hover:bg-violet-500 active:bg-violet-700 text-white font-semibold
+                 px-6 py-4 rounded-xl transition-colors whitespace-nowrap"
+        >
+          Recommend →
+        </button>
+      </div>
+
+      <!-- Autocomplete dropdown -->
+      <ul
+        id="dropdown"
+        class="hidden absolute z-20 left-0 w-full mt-1 bg-gray-800 border border-gray-700 rounded-xl
+               shadow-2xl shadow-black/60 overflow-hidden"
+        role="listbox"
+      ></ul>
+    </div>
+
+    <!-- Loading spinner -->
+    <div id="loading" class="hidden justify-center py-20">
+      <div class="spinner w-10 h-10 rounded-full border-4 border-gray-700 border-t-violet-500"></div>
+    </div>
+
+    <!-- Error message -->
+    <div id="error-block" class="hidden text-center py-16 px-4">
+      <div class="text-5xl mb-5">🎬</div>
+      <p id="error-msg" class="text-gray-300 text-lg max-w-md mx-auto"></p>
+    </div>
+
+    <!-- Results -->
+    <div id="results" class="hidden">
+
+      <!-- You searched for -->
+      <section class="mb-10">
+        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">You searched for</h2>
+        <div id="matched-card"></div>
+      </section>
+
+      <!-- Recommendations -->
+      <section>
+        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">Recommendations</h2>
+        <div
+          id="rec-grid"
+          class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
+        ></div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ── Script ─────────────────────────────────────────────────────────── -->
+  <script>
+    const API_BASE = "http://localhost:8000";
+
+    // ── DOM refs ────────────────────────────────────────────────────────────
+    const searchInput  = document.getElementById('search-input');
+    const clearBtn     = document.getElementById('clear-btn');
+    const recommendBtn = document.getElementById('recommend-btn');
+    const dropdown     = document.getElementById('dropdown');
+    const loading      = document.getElementById('loading');
+    const errorBlock   = document.getElementById('error-block');
+    const errorMsg     = document.getElementById('error-msg');
+    const results      = document.getElementById('results');
+    const matchedCard  = document.getElementById('matched-card');
+    const recGrid      = document.getElementById('rec-grid');
+
+    // ── Utilities ───────────────────────────────────────────────────────────
+    function debounce(fn, ms) {
+      let t;
+      return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+    }
+
+    function esc(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    const GENRE_COLORS = {
+      'Action':      'bg-red-900/70 text-red-300',
+      'Adventure':   'bg-orange-900/70 text-orange-300',
+      'Animation':   'bg-purple-900/70 text-purple-300',
+      'Comedy':      'bg-yellow-900/70 text-yellow-300',
+      'Crime':       'bg-zinc-700/80 text-zinc-300',
+      'Documentary': 'bg-teal-900/70 text-teal-300',
+      'Drama':       'bg-blue-900/70 text-blue-300',
+      'Fantasy':     'bg-violet-900/70 text-violet-300',
+      'Horror':      'bg-red-950/80 text-red-400',
+      'Musical':     'bg-pink-900/70 text-pink-300',
+      'Mystery':     'bg-indigo-900/70 text-indigo-300',
+      'Romance':     'bg-rose-900/70 text-rose-300',
+      'Sci-Fi':      'bg-cyan-900/70 text-cyan-300',
+      'Thriller':    'bg-slate-700/70 text-slate-300',
+      'War':         'bg-stone-700/70 text-stone-300',
+      'Western':     'bg-amber-900/70 text-amber-300',
+    };
+
+    function genreBadge(genre) {
+      const cls = GENRE_COLORS[genre] || 'bg-gray-700 text-gray-300';
+      return `<span class="inline-block ${cls} text-xs font-medium px-2 py-0.5 rounded-full">${esc(genre)}</span>`;
+    }
+
+    function starRating(score) {
+      const s = Math.max(0, Math.min(5, score));
+      const full = Math.floor(s);
+      const half = (s - full) >= 0.3 ? 1 : 0;
+      const empty = 5 - full - half;
+      const stars =
+        '<span class="text-amber-400">' + '★'.repeat(full) + (half ? '½' : '') + '</span>' +
+        '<span class="text-gray-700">' + '★'.repeat(empty) + '</span>';
+      return `<span class="inline-flex items-baseline gap-1 text-sm">${stars}<span class="text-gray-500 text-xs">${s.toFixed(2)}</span></span>`;
+    }
+
+    function poster(url, title, extraClass = '') {
+      if (url) {
+        return `<img src="${esc(url)}" alt="${esc(title)}" class="w-full h-full object-cover ${extraClass}" loading="lazy" />`;
+      }
+      // Placeholder
+      return `<div class="w-full h-full flex items-center justify-center p-4 bg-gray-700 ${extraClass}">
+        <span class="text-gray-400 text-xs text-center leading-snug">${esc(title)}</span>
+      </div>`;
+    }
+
+    // ── UI state ────────────────────────────────────────────────────────────
+    function showLoading() {
+      loading.classList.remove('hidden');
+      loading.classList.add('flex');
+      errorBlock.classList.add('hidden');
+      results.classList.add('hidden');
+    }
+
+    function showError(msg) {
+      loading.classList.add('hidden');
+      loading.classList.remove('flex');
+      errorBlock.classList.remove('hidden');
+      results.classList.add('hidden');
+      errorMsg.textContent = msg;
+    }
+
+    function showResults() {
+      loading.classList.add('hidden');
+      loading.classList.remove('flex');
+      errorBlock.classList.add('hidden');
+      results.classList.remove('hidden');
+    }
+
+    function closeDropdown() {
+      dropdown.classList.add('hidden');
+      dropdown.innerHTML = '';
+    }
+
+    // ── Autocomplete ────────────────────────────────────────────────────────
+    const onInput = debounce(async () => {
+      const q = searchInput.value.trim();
+      clearBtn.classList.toggle('hidden', q.length === 0);
+
+      if (q.length < 2) { closeDropdown(); return; }
+
+      try {
+        const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}`);
+        if (!res.ok) { closeDropdown(); return; }
+        const items = await res.json();
+        renderDropdown(items);
+      } catch {
+        closeDropdown();
+      }
+    }, 300);
+
+    function renderDropdown(items) {
+      if (!items.length) { closeDropdown(); return; }
+
+      dropdown.innerHTML = items.map((m, i) => `
+        <li
+          role="option"
+          tabindex="0"
+          data-title="${esc(m.title)}"
+          class="flex items-center gap-3 px-4 py-3 cursor-pointer text-sm text-gray-200
+                 hover:bg-white/5 border-b border-gray-700/40 last:border-0 transition-colors"
+        >
+          <span class="text-gray-600 text-xs w-4 text-right flex-shrink-0">${i + 1}</span>
+          <span>${esc(m.title)}</span>
+        </li>
+      `).join('');
+
+      dropdown.classList.remove('hidden');
+    }
+
+    // Event delegation for dropdown clicks
+    dropdown.addEventListener('click', e => {
+      const li = e.target.closest('li[data-title]');
+      if (li) selectSuggestion(li.dataset.title);
+    });
+
+    dropdown.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        const li = e.target.closest('li[data-title]');
+        if (li) selectSuggestion(li.dataset.title);
+      }
+    });
+
+    function selectSuggestion(title) {
+      searchInput.value = title;
+      clearBtn.classList.remove('hidden');
+      closeDropdown();
+      recommend(title);
+    }
+
+    // ── Recommendation ──────────────────────────────────────────────────────
+    async function recommend(title) {
+      const t = title.trim();
+      if (!t) return;
+
+      showLoading();
+      closeDropdown();
+
+      try {
+        const res = await fetch(`${API_BASE}/recommend/movie/${encodeURIComponent(t)}`);
+        if (res.status === 404) {
+          showError(`No results for "${t}". Try a different title.`);
+          return;
+        }
+        if (!res.ok) throw new Error('server');
+        const data = await res.json();
+        renderResults(data);
+        showResults();
+        results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch {
+        showError('Could not reach the API. Make sure it is running on localhost:8000.');
+      }
+    }
+
+    // ── Render ──────────────────────────────────────────────────────────────
+    function renderResults(data) {
+      // Matched movie — horizontal card
+      const m = data.matched_movie;
+      matchedCard.innerHTML = `
+        <div class="flex gap-5 bg-gray-800/60 border border-gray-700/50 rounded-2xl p-4 max-w-xl">
+          <div class="w-24 flex-shrink-0 rounded-lg overflow-hidden bg-gray-700" style="aspect-ratio:2/3">
+            ${poster(m.poster_url, m.title)}
+          </div>
+          <div class="flex flex-col justify-center gap-2 min-w-0">
+            <h3 class="font-bold text-white text-lg leading-tight">${esc(m.title)}</h3>
+            ${m.synopsis
+              ? `<p class="text-gray-400 text-sm line-clamp-3">${esc(m.synopsis)}</p>`
+              : '<p class="text-gray-600 text-sm italic">No synopsis available.</p>'
+            }
+          </div>
+        </div>
+      `;
+
+      // Recommendation grid — 10 clickable cards
+      recGrid.innerHTML = data.recommendations.map(r => `
+        <article
+          data-title="${esc(r.title)}"
+          class="group relative bg-gray-800 border border-gray-700/50 rounded-xl overflow-hidden
+                 cursor-pointer transition-all duration-200
+                 hover:border-violet-500/60 hover:scale-[1.02] hover:shadow-lg hover:shadow-violet-900/30"
+        >
+          <!-- Poster -->
+          <div class="overflow-hidden bg-gray-700" style="aspect-ratio:2/3">
+            ${poster(r.poster_url, r.title)}
+          </div>
+
+          <!-- Info -->
+          <div class="p-3 space-y-2">
+            <div>
+              <h3 class="font-semibold text-white text-sm leading-snug line-clamp-2">${esc(r.title)}</h3>
+              ${r.release_year
+                ? `<span class="text-gray-500 text-xs">${r.release_year}</span>`
+                : ''
+              }
+            </div>
+
+            <!-- Genre badges (max 2) -->
+            <div class="flex flex-wrap gap-1">
+              ${(r.genres || []).slice(0, 2).map(genreBadge).join('')}
+            </div>
+
+            <!-- Star rating -->
+            <div>${starRating(r.predicted_score)}</div>
+          </div>
+
+          <!-- Hover overlay -->
+          <div class="absolute inset-0 bg-violet-500/0 group-hover:bg-violet-500/5 transition-colors pointer-events-none"></div>
+        </article>
+      `).join('');
+    }
+
+    // Event delegation for recommendation card clicks
+    recGrid.addEventListener('click', e => {
+      const card = e.target.closest('article[data-title]');
+      if (card) {
+        const title = card.dataset.title;
+        searchInput.value = title;
+        clearBtn.classList.remove('hidden');
+        recommend(title);
+      }
+    });
+
+    // ── Global event listeners ──────────────────────────────────────────────
+    searchInput.addEventListener('input', onInput);
+
+    searchInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        const t = searchInput.value.trim();
+        if (t) recommend(t);
+      } else if (e.key === 'Escape') {
+        closeDropdown();
+      } else if (e.key === 'ArrowDown') {
+        const first = dropdown.querySelector('li');
+        if (first) { e.preventDefault(); first.focus(); }
+      }
+    });
+
+    recommendBtn.addEventListener('click', () => {
+      const t = searchInput.value.trim();
+      if (t) recommend(t);
+    });
+
+    clearBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      clearBtn.classList.add('hidden');
+      closeDropdown();
+      searchInput.focus();
+    });
+
+    document.addEventListener('click', e => {
+      if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+        closeDropdown();
+      }
+    });
+  </script>
+
+</body>
+</html>

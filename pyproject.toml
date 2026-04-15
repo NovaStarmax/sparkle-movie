@@ -1,26 +1,33 @@
 [project]
 name = "sparkle-movie"
 version = "0.1.0"
-description = "Add your description here"
+description = "Système de recommandation de films — MovieLens + ALS"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.135.3",
     "httpx>=0.28.1",
-    "ipykernel>=7.2.0",
-    "matplotlib>=3.10.8",
     "numpy>=2.4.3",
     "pandas>=3.0.1",
-    "pyarrow>=23.0.1",
     "pydantic>=2.13.0",
-    "pyspark>=4.1.1",
-    "pytest>=9.0.3",
     "python-dotenv>=1.2.2",
+    "uvicorn>=0.44.0",
+]
+
+[project.optional-dependencies]
+notebooks = [
+    "pyspark>=4.1.1",
+    "ipykernel>=7.2.0",
+    "matplotlib>=3.10.8",
+    "tqdm>=4.67.3",
     "torch>=2.11.0",
     "torchvision>=0.26.0",
-    "tqdm>=4.67.3",
-    "uvicorn>=0.44.0",
+    "pyarrow>=23.0.1",
+]
+dev = [
+    "pytest>=9.0.3",
     "pytest-asyncio>=0.25.0",
+    "httpx>=0.28.1",
 ]
 
 [tool.pytest.ini_options]

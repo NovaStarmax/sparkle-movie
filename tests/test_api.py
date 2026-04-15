@@ -1,10 +1,14 @@
+import csv
 import time
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from api.main import app
+
+_RATINGS_COUNT_PATH = Path(__file__).parent.parent / "models" / "shared" / "ratings_count.csv"
 
 
 @pytest.fixture(scope="module")
@@ -65,3 +69,23 @@ async def test_recommend_performance(client):
 
     assert resp.status_code == 200
     assert elapsed < 2.0, f"Recommendation took {elapsed:.2f}s — expected < 2s"
+
+
+async def test_recommend_quality(client):
+    """Every recommended film must appear in ratings_count.csv with count >= 50."""
+    with open(_RATINGS_COUNT_PATH, newline="") as f:
+        reader = csv.DictReader(f)
+        counts = {int(row["movieId"]): int(row["count"]) for row in reader}
+
+    resp = await client.get("/recommend/movie/Toy%20Story")
+    assert resp.status_code == 200
+    recs = resp.json()["recommendations"]
+
+    assert len(recs) == 10
+
+    for rec in recs:
+        movie_id = rec["movieId"]
+        assert movie_id in counts, f"movieId {movie_id} absent de ratings_count.csv"
+        assert counts[movie_id] >= 50, (
+            f"movieId {movie_id} a seulement {counts[movie_id]} ratings (< 50)"
+        )

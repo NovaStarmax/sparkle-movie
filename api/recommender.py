@@ -1,10 +1,13 @@
 import difflib
 import json
+import logging
 from pathlib import Path
 from typing import Optional
 
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 class Recommender:
@@ -31,6 +34,40 @@ class Recommender:
 
         # Precompute lowercased titles for fuzzy search
         self._titles_lower: list[str] = self.movies["title"].str.lower().tolist()
+
+        # Popularity filter — precomputed boolean mask aligned with item_ids
+        # True  → film éligible (count >= 50)
+        # None  → pas de filtre (fichier absent)
+        self._popularity_mask: Optional[np.ndarray] = self._load_popularity_mask(
+            shared_path / "ratings_count.csv"
+        )
+
+    def _load_popularity_mask(self, path: Path) -> Optional[np.ndarray]:
+        """Build a boolean mask (n_items,) where True means count >= 50.
+
+        Returns None with a warning if the file is missing (graceful degradation).
+        """
+        if not path.exists():
+            logger.warning(
+                "ratings_count.csv not found at %s — popularity filter disabled", path
+            )
+            return None
+
+        counts_df = pd.read_csv(path)
+        counts: dict[int, int] = dict(
+            zip(counts_df["movieId"].astype(int), counts_df["count"].astype(int))
+        )
+        # Vectorised lookup: one value per item_id position
+        mask = np.array(
+            [counts.get(int(mid), 0) >= 50 for mid in self.item_ids], dtype=bool
+        )
+        n_eligible = int(mask.sum())
+        logger.info(
+            "Popularity filter loaded: %d/%d items have count >= 50",
+            n_eligible,
+            len(self.item_ids),
+        )
+        return mask
 
     # ------------------------------------------------------------------
     # Public interface
@@ -87,6 +124,10 @@ class Recommender:
 
         # Exclude the input item
         all_scores[idx] = -np.inf
+
+        # Step 3b — popularity filter (vectorised, applied before ranking)
+        if self._popularity_mask is not None:
+            all_scores[~self._popularity_mask] = -np.inf
 
         # Step 4 — pick top n
         top_indices = np.argpartition(all_scores, -n)[-n:]

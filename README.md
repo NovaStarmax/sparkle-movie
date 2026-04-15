@@ -6,6 +6,30 @@
 
 ---
 
+---
+Selon ce que tu veux faire :
+
+- Je veux juste lancer l'API
+
+uv sync
+uv run uvicorn api.main:app --reload
+
+
+- Je veux lancer les notebooks (EDA, modélisation, export)
+
+uv sync --extra notebooks
+uv run jupyter notebook
+
+- Je veux lancer les tests :
+
+uv sync --extra dev
+uv run pytest tests/ -v
+
+- Je veux tout installer (dev complet) :
+
+uv sync --extra notebooks --extra dev
+---
+
 ## Contexte
 
 Une plateforme de streaming souhaite améliorer l'expérience utilisateur en proposant

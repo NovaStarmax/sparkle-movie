@@ -1,0 +1,23 @@
+# Données — pas besoin dans le container API
+data/
+
+# Notebooks — pas besoin dans le container API
+notebooks/
+outputs/
+
+# Environnement Python local
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Dev
+.git/
+.github/
+.gitignore
+
+# Secrets locaux
+.env
+
+# macOS
+.DS_Store
