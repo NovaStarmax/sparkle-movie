@@ -31,4 +31,5 @@ jobs:
 
       - name: Deploy via Coolify webhook
         if: github.ref == 'refs/heads/prod'
+        continue-on-error: true
         run: curl -fsSL "${{ secrets.COOLIFY_WEBHOOK_URL }}"

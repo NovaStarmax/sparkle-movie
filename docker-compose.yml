@@ -1,0 +1,8 @@
+services:
+  api:
+    build: .
+    # No port mapping — Traefik/Coolify handles external routing to port 8000
+    env_file: .env
+    volumes:
+      - ./models:/app/models:ro   # Mount models at runtime; overrides the baked-in copy
+    restart: unless-stopped
