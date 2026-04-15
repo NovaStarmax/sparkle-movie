@@ -1,11 +1,13 @@
 import asyncio
 import re
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Optional
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from api.config import MODELS_PATH
 from api.models import (
@@ -141,3 +143,11 @@ async def recommend_movie(movie_title: str) -> RecommendResponse:
         matched_movie=matched_movie,
         recommendations=recommendations,
     )
+
+
+# ---------------------------------------------------------------------------
+# Static frontend — mounted LAST so API routes take priority
+# ---------------------------------------------------------------------------
+
+_frontend_dir = Path(__file__).parent.parent / "frontend"
+app.mount("/", StaticFiles(directory=_frontend_dir, html=True), name="frontend")
