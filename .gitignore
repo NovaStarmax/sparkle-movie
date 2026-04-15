@@ -30,3 +30,7 @@ models/als/
 
 # macOS
 .DS_Store
+
+*.npy
+*.ipynb
+uv.lock
