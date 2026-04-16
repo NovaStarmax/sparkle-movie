@@ -7,8 +7,6 @@
 
 ## Contexte
 
-Projet réalisé dans le cadre du MSc Big Data — EPITECH Marseille.
-
 Une plateforme de streaming souhaite améliorer l'expérience utilisateur en proposant des recommandations personnalisées. Ce projet implémente et compare plusieurs approches de recommandation sur le dataset **MovieLens 32M** (32 millions de ratings, 200 948 utilisateurs, 87 585 films), en exploitant Apache Spark pour le traitement distribué des données.
 
 ---
@@ -370,8 +368,3 @@ MovieLens est un dataset de recherche anonymisé — aucune donnée personnelle 
 - Zhou, Y. et al. (2008). *Large-Scale Parallel Collaborative Filtering for the Netflix Prize*. AAIM 2008.
 
 ---
-
-## Auteur
-
-**Antoine Gobbe** — MSc Big Data, EPITECH Marseille  
-Alternance : Chargé de mission Data & IA — Office de Tourisme et des Congrès de Marseille
